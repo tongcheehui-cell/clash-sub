@@ -1,35 +1,50 @@
-# 基础配置
+# ---------------------------------------------------
+# 基础设置
+# ---------------------------------------------------
 port: 7890
 socks-port: 7891
 allow-lan: true
 mode: rule
 log-level: info
+ipv6: false
 external-controller: 127.0.0.1:9090
 
+# ---------------------------------------------------
+# DNS 强化配置 (解决手机端无法上网的关键)
+# ---------------------------------------------------
 dns:
   enable: true
+  ipv6: false
   enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  listen: 0.0.0.0:53
   nameserver:
     - 223.5.5.5
     - 119.29.29.29
+    - 8.8.8.8
+  fallback:
+    - https://dns.google/dns-query
+    - https://1.1.1.1/dns-query
 
-# 1. 节点定义 (增加了 HTTP 协议尝试解决超时问题)
+# ---------------------------------------------------
+# 节点定义 (HTTP 协议在移动端握手成功率更高)
+# ---------------------------------------------------
 proxies:
-  - name: "俄罗斯-01-HTTP"
+  - name: "🇷🇺 俄罗斯-01 (HTTP)"
     type: http
     server: 185.81.147.201
     port: 3852
     username: user356752
     password: 4qjtuv
 
-  - name: "俄罗斯-02-HTTP"
+  - name: "🇷🇺 俄罗斯-02 (HTTP)"
     type: http
     server: 31.204.2.212
     port: 3852
     username: user356752
     password: 4qjtuv
 
-  - name: "俄罗斯-01-SOCKS5"
+  - name: "🇷🇺 俄罗斯-01 (SOCKS5)"
     type: socks5
     server: 185.81.147.201
     port: 13852
@@ -37,34 +52,36 @@ proxies:
     password: 4qjtuv
     udp: true
 
-# 2. 策略组 (实现独立选择、健康检测与负载均衡)
+# ---------------------------------------------------
+# 策略组 (手动选择、自动优选、负载均衡)
+# ---------------------------------------------------
 proxy-groups:
-  - name: 🚀 节点选择
+  - name: 🚀 代理转发
     type: select
     proxies:
-      - ⚡ 自动优选(延迟最低)
-      - ⚖️ 负载均衡(叠加带宽)
-      - 俄罗斯-01-HTTP
-      - 俄罗斯-02-HTTP
-      - 俄罗斯-01-SOCKS5
+      - ⚖️ 负载均衡 (叠加带宽)
+      - ⚡ 自动优选 (延迟最低)
+      - 🇷🇺 俄罗斯-01 (HTTP)
+      - 🇷🇺 俄罗斯-02 (HTTP)
+      - 🇷🇺 俄罗斯-01 (SOCKS5)
       - DIRECT
 
-  - name: ⚡ 自动优选(延迟最低)
+  - name: ⚡ 自动优选 (延迟最低)
     type: url-test
     url: http://www.gstatic.com/generate_204
     interval: 300
     proxies:
-      - 俄罗斯-01-HTTP
-      - 俄罗斯-02-HTTP
+      - 🇷🇺 俄罗斯-01 (HTTP)
+      - 🇷🇺 俄罗斯-02 (HTTP)
 
-  - name: ⚖️ 负载均衡(叠加带宽)
+  - name: ⚖️ 负载均衡 (叠加带宽)
     type: load-balance
     url: http://www.gstatic.com/generate_204
     interval: 300
     strategy: round-robin
     proxies:
-      - 俄罗斯-01-HTTP
-      - 俄罗斯-02-HTTP
+      - 🇷🇺 俄罗斯-01 (HTTP)
+      - 🇷🇺 俄罗斯-02 (HTTP)
 
   - name: 🚫 广告拦截
     type: select
@@ -72,22 +89,28 @@ proxy-groups:
       - REJECT
       - DIRECT
 
-# 3. 分流规则 (针对 IG, TG, VK, Gemini, ChatGPT)
+# ---------------------------------------------------
+# 分流规则 (满足 IG, TG, VK, AI 工具需求)
+# ---------------------------------------------------
 rules:
-  # 广告拦截
+  # 1. 广告拦截
   - DOMAIN-KEYWORD,adservice,🚫 广告拦截
   - DOMAIN-SUFFIX,google-analytics.com,🚫 广告拦截
+  - DOMAIN-KEYWORD,adsense,🚫 广告拦截
   
-  # AI 与 社交平台
-  - DOMAIN-SUFFIX,google.com,🚀 节点选择
-  - DOMAIN-SUFFIX,openai.com,🚀 节点选择
-  - DOMAIN-SUFFIX,chatgpt.com,🚀 节点选择
-  - DOMAIN-SUFFIX,gemini.google.com,🚀 节点选择
-  - DOMAIN-SUFFIX,instagram.com,🚀 节点选择
-  - DOMAIN-SUFFIX,cdninstagram.com,🚀 节点选择
-  - DOMAIN-SUFFIX,telegram.org,🚀 节点选择
-  - DOMAIN-SUFFIX,vk.com,🚀 节点选择
+  # 2. 社交与 AI 平台
+  - DOMAIN-SUFFIX,instagram.com,🚀 代理转发
+  - DOMAIN-SUFFIX,cdninstagram.com,🚀 代理转发
+  - DOMAIN-SUFFIX,telegram.org,🚀 代理转发
+  - DOMAIN-SUFFIX,tdesktop.com,🚀 代理转发
+  - DOMAIN-SUFFIX,vk.com,🚀 代理转发
+  - DOMAIN-SUFFIX,openai.com,🚀 代理转发
+  - DOMAIN-SUFFIX,chatgpt.com,🚀 代理转发
+  - DOMAIN-SUFFIX,gemini.google.com,🚀 代理转发
+  - DOMAIN-KEYWORD,google,🚀 代理转发
   
-  # 国内直连与兜底
+  # 3. 国内直连
   - GEOIP,CN,DIRECT
-  - MATCH,🚀 节点选择
+  
+  # 4. 兜底规则
+  - MATCH,🚀 代理转发
