@@ -1,5 +1,5 @@
 # ---------------------------------------------------
-# 基础设置
+# 基础配置
 # ---------------------------------------------------
 port: 7890
 socks-port: 7891
@@ -7,81 +7,77 @@ allow-lan: true
 mode: rule
 log-level: info
 ipv6: false
-external-controller: 127.0.0.1:9090
 
 # ---------------------------------------------------
-# DNS 强化配置 (解决手机端无法上网的关键)
+# DNS 配置 (针对手机移动数据优化，不使用 Fake-IP)
 # ---------------------------------------------------
 dns:
   enable: true
   ipv6: false
-  enhanced-mode: fake-ip
-  fake-ip-range: 198.18.0.1/16
+  enhanced-mode: redoctor
   listen: 0.0.0.0:53
   nameserver:
     - 223.5.5.5
-    - 119.29.29.29
-    - 8.8.8.8
+    - 114.114.114.114
   fallback:
-    - https://dns.google/dns-query
-    - https://1.1.1.1/dns-query
+    - 8.8.8.8
+    - 1.1.1.1
 
 # ---------------------------------------------------
-# 节点定义 (HTTP 协议在移动端握手成功率更高)
+# 节点定义
 # ---------------------------------------------------
 proxies:
-  - name: "🇷🇺 俄罗斯-01 (HTTP)"
+  - name: "🇷🇺 俄罗斯-01-HTTP"
     type: http
     server: 185.81.147.201
     port: 3852
     username: user356752
     password: 4qjtuv
 
-  - name: "🇷🇺 俄罗斯-02 (HTTP)"
+  - name: "🇷🇺 俄罗斯-02-HTTP"
     type: http
     server: 31.204.2.212
     port: 3852
     username: user356752
     password: 4qjtuv
 
-  - name: "🇷🇺 俄罗斯-01 (SOCKS5)"
+  - name: "🇷🇺 俄罗斯-01-SOCKS5"
     type: socks5
     server: 185.81.147.201
     port: 13852
     username: user356752
     password: 4qjtuv
-    udp: true
+    udp: false # 手机端建议关闭 UDP 以提高稳定性
 
 # ---------------------------------------------------
-# 策略组 (手动选择、自动优选、负载均衡)
+# 策略组 (实现手动、优选、负载均衡)
 # ---------------------------------------------------
 proxy-groups:
   - name: 🚀 代理转发
     type: select
     proxies:
-      - ⚖️ 负载均衡 (叠加带宽)
-      - ⚡ 自动优选 (延迟最低)
-      - 🇷🇺 俄罗斯-01 (HTTP)
-      - 🇷🇺 俄罗斯-02 (HTTP)
-      - 🇷🇺 俄罗斯-01 (SOCKS5)
+      - 🇷🇺 俄罗斯-01-HTTP
+      - 🇷🇺 俄罗斯-02-HTTP
+      - ⚡ 自动优选
+      - ⚖️ 负载均衡
       - DIRECT
 
-  - name: ⚡ 自动优选 (延迟最低)
+  - name: ⚡ 自动优选
     type: url-test
     url: http://www.gstatic.com/generate_204
     interval: 300
     proxies:
-      - 🇷🇺 俄罗斯-01 (HTTP)
-      - 🇷🇺 俄罗斯-02 (HTTP)
+      - 🇷🇺 俄罗斯-01-HTTP
+      - 🇷🇺 俄罗斯-02-HTTP
 
-  - name: ⚖️ 负载均衡 (叠加带宽)
+  - name: ⚖️ 负载均衡
     type: load-balance
     url: http://www.gstatic.com/generate_204
     interval: 300
     strategy: round-robin
     proxies:
-      - 🇷🇺 俄罗斯-01 (HTTP)
-      - 🇷🇺 俄罗斯-02 (HTTP)
+      - 🇷🇺 俄罗斯-01-HTTP
+      - 🇷🇺 俄罗斯-02-HTTP
 
   - name: 🚫 广告拦截
     type: select
@@ -90,27 +86,22 @@ proxy-groups:
       - DIRECT
 
 # ---------------------------------------------------
-# 分流规则 (满足 IG, TG, VK, AI 工具需求)
+# 分流规则
 # ---------------------------------------------------
 rules:
-  # 1. 广告拦截
+  # 广告
   - DOMAIN-KEYWORD,adservice,🚫 广告拦截
-  - DOMAIN-SUFFIX,google-analytics.com,🚫 广告拦截
-  - DOMAIN-KEYWORD,adsense,🚫 广告拦截
   
-  # 2. 社交与 AI 平台
+  # AI & 社交 (IG, TG, VK, Gemini, GPT)
   - DOMAIN-SUFFIX,instagram.com,🚀 代理转发
   - DOMAIN-SUFFIX,cdninstagram.com,🚀 代理转发
   - DOMAIN-SUFFIX,telegram.org,🚀 代理转发
-  - DOMAIN-SUFFIX,tdesktop.com,🚀 代理转发
   - DOMAIN-SUFFIX,vk.com,🚀 代理转发
   - DOMAIN-SUFFIX,openai.com,🚀 代理转发
   - DOMAIN-SUFFIX,chatgpt.com,🚀 代理转发
-  - DOMAIN-SUFFIX,gemini.google.com,🚀 代理转发
+  - DOMAIN-SUFFIX,google.com,🚀 代理转发
   - DOMAIN-KEYWORD,google,🚀 代理转发
   
-  # 3. 国内直连
+  # 国内直连
   - GEOIP,CN,DIRECT
-  
-  # 4. 兜底规则
   - MATCH,🚀 代理转发
