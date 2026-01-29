@@ -1,18 +1,35 @@
+# 基础配置
 port: 7890
 socks-port: 7891
 allow-lan: true
 mode: rule
 log-level: info
 external-controller: 127.0.0.1:9090
+
 dns:
   enable: true
   enhanced-mode: fake-ip
   nameserver:
     - 223.5.5.5
-    - 8.8.8.8
+    - 119.29.29.29
 
+# 1. 节点定义 (增加了 HTTP 协议尝试解决超时问题)
 proxies:
-  - name: "🇷🇺 RU-01"
+  - name: "俄罗斯-01-HTTP"
+    type: http
+    server: 185.81.147.201
+    port: 3852
+    username: user356752
+    password: 4qjtuv
+
+  - name: "俄罗斯-02-HTTP"
+    type: http
+    server: 31.204.2.212
+    port: 3852
+    username: user356752
+    password: 4qjtuv
+
+  - name: "俄罗斯-01-SOCKS5"
     type: socks5
     server: 185.81.147.201
     port: 13852
@@ -20,52 +37,57 @@ proxies:
     password: 4qjtuv
     udp: true
 
-  - name: "🇷🇺 RU-02"
-    type: socks5
-    server: 31.204.2.212
-    port: 13852
-    username: user356752
-    password: 4qjtuv
-    udp: true
-
+# 2. 策略组 (实现独立选择、健康检测与负载均衡)
 proxy-groups:
-  - name: "🚀 主控选择"
+  - name: 🚀 节点选择
     type: select
     proxies:
-      - ♻️ RU-自动
-      - 🇷🇺 RU-01
-      - 🇷🇺 RU-02
+      - ⚡ 自动优选(延迟最低)
+      - ⚖️ 负载均衡(叠加带宽)
+      - 俄罗斯-01-HTTP
+      - 俄罗斯-02-HTTP
+      - 俄罗斯-01-SOCKS5
       - DIRECT
 
-  - name: "♻️ RU-自动"
-    type: load-balance
-    strategy: round-robin
+  - name: ⚡ 自动优选(延迟最低)
+    type: url-test
     url: http://www.gstatic.com/generate_204
     interval: 300
     proxies:
-      - 🇷🇺 RU-01
-      - 🇷🇺 RU-02
+      - 俄罗斯-01-HTTP
+      - 俄罗斯-02-HTTP
 
-rule-providers:
-  ads:
-    type: http
-    behavior: domain
-    url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
-    path: ./ruleset/ads.yaml
-    interval: 86400
+  - name: ⚖️ 负载均衡(叠加带宽)
+    type: load-balance
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    strategy: round-robin
+    proxies:
+      - 俄罗斯-01-HTTP
+      - 俄罗斯-02-HTTP
 
+  - name: 🚫 广告拦截
+    type: select
+    proxies:
+      - REJECT
+      - DIRECT
+
+# 3. 分流规则 (针对 IG, TG, VK, Gemini, ChatGPT)
 rules:
-  - RULE-SET,ads,REJECT
-
-  # 社交平台 - 强制 RU
-  - DOMAIN-SUFFIX,instagram.com,🚀 主控选择
-  - DOMAIN-SUFFIX,cdninstagram.com,🚀 主控选择
-  - DOMAIN-SUFFIX,t.me,🚀 主控选择
-  - DOMAIN-SUFFIX,telegram.org,🚀 主控选择
-  - DOMAIN-SUFFIX,vk.com,🚀 主控选择
-
-  # 国内直连
+  # 广告拦截
+  - DOMAIN-KEYWORD,adservice,🚫 广告拦截
+  - DOMAIN-SUFFIX,google-analytics.com,🚫 广告拦截
+  
+  # AI 与 社交平台
+  - DOMAIN-SUFFIX,google.com,🚀 节点选择
+  - DOMAIN-SUFFIX,openai.com,🚀 节点选择
+  - DOMAIN-SUFFIX,chatgpt.com,🚀 节点选择
+  - DOMAIN-SUFFIX,gemini.google.com,🚀 节点选择
+  - DOMAIN-SUFFIX,instagram.com,🚀 节点选择
+  - DOMAIN-SUFFIX,cdninstagram.com,🚀 节点选择
+  - DOMAIN-SUFFIX,telegram.org,🚀 节点选择
+  - DOMAIN-SUFFIX,vk.com,🚀 节点选择
+  
+  # 国内直连与兜底
   - GEOIP,CN,DIRECT
-
-  # 兜底
-  - MATCH,🚀 主控选择
+  - MATCH,🚀 节点选择
